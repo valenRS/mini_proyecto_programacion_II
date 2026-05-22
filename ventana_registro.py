@@ -40,7 +40,8 @@ class VentanaRegistro:
     def __init__(self, raiz: tk.Tk):
         self.raiz     = raiz
         self.manejador = ManejadorDatos()
-        self._total_actual = 0   # Total a pagar como número (se actualiza al elegir cantidad)
+        self._total_actual = 0       # Total a pagar como número (se actualiza al elegir cantidad)
+        self._indices_bloqueados = set()  # Índices seleccionados cuando el listbox está lleno
 
         self.raiz.title("Rifa Navideña · Registro de compradores")
         self.raiz.configure(bg=COLOR_FONDO)
@@ -417,6 +418,8 @@ class VentanaRegistro:
 
     def _al_cambiar_cantidad(self, evento=None):
         """Se activa al cambiar la cantidad en el Combobox: limpia la selección y recalcula."""
+        self._indices_bloqueados = set()
+        self._resetear_colores_listbox()
         self._listbox_numeros.config(state="normal")
         self._listbox_numeros.selection_clear(0, "end")
         self._actualizar_contador()
@@ -424,20 +427,45 @@ class VentanaRegistro:
 
     def _al_seleccionar_numeros(self, evento=None):
         """Se activa al hacer clic en el Listbox: controla el límite de selección."""
-        pedidas  = self._cantidad_pedida()
-        elegidas = len(self._listbox_numeros.curselection())
+        pedidas          = self._cantidad_pedida()
+        seleccion_actual = set(self._listbox_numeros.curselection())
+        elegidas         = len(seleccion_actual)
 
-        # Si el usuario intentó seleccionar más de las pedidas, deshacer el último clic
-        if pedidas > 0 and elegidas > pedidas:
-            ultimo = self._listbox_numeros.curselection()[-1]
-            self._listbox_numeros.selection_clear(ultimo)
-            elegidas = pedidas
+        if self._indices_bloqueados:
+            # Modo lleno: solo se permite deseleccionar ítems ya elegidos
+            if elegidas > len(self._indices_bloqueados):
+                # Intentó añadir uno nuevo → revertir al estado bloqueado
+                self._listbox_numeros.selection_clear(0, "end")
+                for i in self._indices_bloqueados:
+                    self._listbox_numeros.selection_set(i)
+            else:
+                # Deseleccionó uno → desbloquear y restaurar colores
+                self._indices_bloqueados = set()
+                self._resetear_colores_listbox()
+        else:
+            # Modo normal: limitar a la cantidad pedida
+            if pedidas > 0 and elegidas > pedidas:
+                ultimo = self._listbox_numeros.curselection()[-1]
+                self._listbox_numeros.selection_clear(ultimo)
+                elegidas = pedidas
 
-        # Bloquear el listbox cuando se alcance la cantidad solicitada
-        if elegidas >= pedidas > 0:
-            self._listbox_numeros.config(state="disabled")
+            # Al alcanzar el máximo, activar bloqueo suave con oscurecimiento visual
+            if elegidas >= pedidas > 0:
+                self._indices_bloqueados = set(self._listbox_numeros.curselection())
+                self._aplicar_bloqueo_visual()
 
         self._actualizar_contador()
+
+    def _aplicar_bloqueo_visual(self):
+        """Oscurece los ítems no seleccionados para indicar que el listbox está lleno."""
+        for i in range(self._listbox_numeros.size()):
+            if i not in self._indices_bloqueados:
+                self._listbox_numeros.itemconfigure(i, fg="#4A4A6A")
+
+    def _resetear_colores_listbox(self):
+        """Restaura el color original de todos los ítems del listbox."""
+        for i in range(self._listbox_numeros.size()):
+            self._listbox_numeros.itemconfigure(i, fg=COLOR_TEXTO_FORM)
 
     def _actualizar_contador(self):
         pedidas  = self._cantidad_pedida()
