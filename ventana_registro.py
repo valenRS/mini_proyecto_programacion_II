@@ -96,6 +96,10 @@ class VentanaRegistro:
         campo.pack(fill="x")
         return contenedor, campo
 
+    def _solo_digitos(self, nuevo_valor: str) -> bool:
+        """Validatecommand: acepta solo dígitos en el campo de valor pagado."""
+        return nuevo_valor == "" or nuevo_valor.isdigit()
+
     # ------------------------------------------------------------------ #
     #  Construcción de la interfaz                                        #
     # ------------------------------------------------------------------ #
@@ -276,6 +280,7 @@ class VentanaRegistro:
         self._listbox_numeros.bind("<<ListboxSelect>>", self._al_seleccionar_numeros)
 
         self._llenar_listbox()
+        self._listbox_numeros.config(state="disabled")
 
         # ── Contador de selección ────────────────────────────────────────
         self._label_contador = tk.Label(
@@ -322,6 +327,8 @@ class VentanaRegistro:
 
         contenedor_pago, self._entry_valor_pagado = self._crear_campo_entrada(marco, ancho=18)
         contenedor_pago.grid(row=0, column=1, padx=(10, 40), ipady=2)
+        vcmd = (self.raiz.register(self._solo_digitos), "%P")
+        self._entry_valor_pagado.config(validate="key", validatecommand=vcmd)
 
         # ── Checkbuttons (mutuamente exclusivos) ─────────────────────────
         self._var_pago_completo = tk.BooleanVar()
@@ -410,6 +417,7 @@ class VentanaRegistro:
 
     def _al_cambiar_cantidad(self, evento=None):
         """Se activa al cambiar la cantidad en el Combobox: limpia la selección y recalcula."""
+        self._listbox_numeros.config(state="normal")
         self._listbox_numeros.selection_clear(0, "end")
         self._actualizar_contador()
         self._calcular_total()
@@ -423,6 +431,11 @@ class VentanaRegistro:
         if pedidas > 0 and elegidas > pedidas:
             ultimo = self._listbox_numeros.curselection()[-1]
             self._listbox_numeros.selection_clear(ultimo)
+            elegidas = pedidas
+
+        # Bloquear el listbox cuando se alcance la cantidad solicitada
+        if elegidas >= pedidas > 0:
+            self._listbox_numeros.config(state="disabled")
 
         self._actualizar_contador()
 
@@ -541,22 +554,28 @@ class VentanaRegistro:
                                    "Ingresa el valor que pagó el comprador.")
             self._entry_valor_pagado.focus()
             return
-        try:
-            valor_pagado = int(valor_texto)
-            if valor_pagado < 0:
-                raise ValueError
-        except ValueError:
+        valor_pagado = int(valor_texto)  # Solo dígitos — garantizado por validatecommand
+        if valor_pagado <= 0:
             messagebox.showerror(
                 "Valor inválido",
-                "El valor pagado debe ser un número entero positivo\n(sin puntos ni comas).",
+                "El valor pagado debe ser mayor que cero.",
             )
+            self._entry_valor_pagado.focus()
+            return
+        if valor_pagado > self._total_actual:
+            messagebox.showerror(
+                "Valor inválido",
+                f"El valor pagado (${valor_pagado:,}) no puede superar\n"
+                f"el total a pagar (${self._total_actual:,}).",
+            )
+            self._entry_valor_pagado.focus()
             return
 
         # ── 7. Construir el registro y guardar ────────────────────────────
         boletas_disp   = self.manejador.boletas_disponibles()
         numeros_elegidos = [boletas_disp[i] for i in indices_elegidos]
         numeros_texto    = "-".join(str(n) for n in sorted(numeros_elegidos))
-        estado_pago      = "Si" if self._var_pago_completo.get() else "No"
+        estado_pago      = "Si" if valor_pagado == self._total_actual else "No"
 
         datos_compra = {
             "nombre":           nombre,
@@ -597,6 +616,7 @@ class VentanaRegistro:
 
         # Recargar el Listbox
         self._llenar_listbox()
+        self._listbox_numeros.config(state="disabled")
 
         # Reiniciar campos calculados y estados
         self._total_actual = 0

@@ -138,8 +138,8 @@ class VentanaResumen:
         self._crear_encabezado()
         self._crear_tarjetas()
         self._crear_barra_progreso()
-        self._crear_tabla_compras()
-        self._crear_barra_botones()
+        self._crear_barra_botones()   # Se empaca primero para quedar siempre visible
+        self._crear_tabla_compras()   # Se empaca después para expandirse en el espacio restante
 
     def _crear_encabezado(self):
         marco = tk.Frame(self.raiz, bg="#0D1B2A", pady=14)
@@ -237,8 +237,8 @@ class VentanaResumen:
 
     def _crear_barra_progreso(self):
         """Barra visual que representa el porcentaje de boletas vendidas."""
-        marco = tk.Frame(self.raiz, bg=COLOR_FONDO, padx=22, pady=(0, 6))
-        marco.pack(fill="x")
+        marco = tk.Frame(self.raiz, bg=COLOR_FONDO, padx=22)
+        marco.pack(fill="x", pady=(0, 6))
 
         # Encabezado de la barra
         marco_enc = tk.Frame(marco, bg=COLOR_FONDO)
@@ -372,7 +372,7 @@ class VentanaResumen:
 
     def _crear_barra_botones(self):
         marco = tk.Frame(self.raiz, bg=COLOR_FONDO, padx=16, pady=10)
-        marco.pack(fill="x")
+        marco.pack(fill="x", side="bottom")
 
         tk.Button(
             marco,
