@@ -1,0 +1,10 @@
+# Bytecode de Python (generados automáticamente al ejecutar)
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivo de datos de la rifa (se genera al registrar la primera compra)
+rifa_datos.csv
+
+# Archivos de desarrollo y planeación
+.github/
