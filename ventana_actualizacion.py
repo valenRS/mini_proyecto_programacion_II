@@ -103,6 +103,10 @@ class VentanaActualizacion:
         campo.pack(fill="x")
         return contenedor, campo
 
+    def _solo_digitos(self, nuevo_valor: str) -> bool:
+        """Validatecommand: acepta solo dígitos en el campo de valor pagado."""
+        return nuevo_valor == "" or nuevo_valor.isdigit()
+
     # ------------------------------------------------------------------ #
     #  Construcción de la interfaz                                        #
     # ------------------------------------------------------------------ #
@@ -233,6 +237,8 @@ class VentanaActualizacion:
 
         contenedor_pago, self._entry_nuevo_valor = self._crear_campo_entrada(marco, ancho=18)
         contenedor_pago.grid(row=1, column=1, padx=(10, 40), ipady=2)
+        vcmd = (self.raiz.register(self._solo_digitos), "%P")
+        self._entry_nuevo_valor.config(validate="key", validatecommand=vcmd)
 
         # ── Nuevo estado de pago ──────────────────────────────────────────
         tk.Label(
@@ -431,20 +437,25 @@ class VentanaActualizacion:
             )
             self._entry_nuevo_valor.focus()
             return
-
-        try:
-            nuevo_valor = int(valor_texto)
-            if nuevo_valor < 0:
-                raise ValueError
-        except ValueError:
+        nuevo_valor = int(valor_texto)  # Solo dígitos — garantizado por validatecommand
+        if nuevo_valor <= 0:
             messagebox.showerror(
                 "Valor inválido",
-                "El valor pagado debe ser un número entero positivo\n(sin puntos ni comas).",
+                "El valor pagado debe ser mayor que cero.",
             )
+            self._entry_nuevo_valor.focus()
+            return
+        if nuevo_valor > self._total_del_seleccionado:
+            messagebox.showerror(
+                "Valor inválido",
+                f"El valor pagado (${nuevo_valor:,}) no puede superar\n"
+                f"el total a pagar (${self._total_del_seleccionado:,}).",
+            )
+            self._entry_nuevo_valor.focus()
             return
 
         # ── Guardar en el CSV ─────────────────────────────────────────────
-        nuevo_estado = "Si" if self._var_pago_completo.get() else "No"
+        nuevo_estado = "Si" if nuevo_valor == self._total_del_seleccionado else "No"
 
         self.manejador.actualizar_compra(
             self._indice_seleccionado,
